@@ -25,7 +25,7 @@ DEFAULT_TARGET = Path(os.environ.get(
     '/Applications/Kimi Code.app/Contents/Resources/desktop-dist',
 )) / 'assets' / 'skill-menu-patch.js'
 
-TEMPLATE = r"""/* Kimi Code 桌面端「+」菜单扩展:技能与插件一键调用。
+TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调用 + 用户消息「引用到输入框」按钮。
  * 由 skill-menu-patch-gen.py 自动生成 —— 数据段勿手改,重新生成即可更新。
  * 生成时间:__GEN_TIME__ */
 (() => {
@@ -104,8 +104,108 @@ TEMPLATE = r"""/* Kimi Code 桌面端「+」菜单扩展:技能与插件一键�
     }
   }
 
+  /* ---- 用户消息「引用到输入框」按钮 ----
+   * 在每条用户消息的底部工具栏(.u-meta,与复制/撤回/时间同行)注入一个引用按钮。
+   * 点击后构造 app 原生 quote pill 的 markdown 语法([预览](kimi-code-composer://quote/<正文>),
+   * 与渲染层源码中的构建/解析规则逐字对齐),通过合成 paste 事件交给 ProseMirror
+   * 原生粘贴管道转成 quote pill;失败时回退为插入纯文本。 */
+
+  const QUOTE_SCHEME = 'kimi-code-composer://quote/';
+  const QUOTE_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M10.2 7.6c-3 0-5.2 2.1-5.2 5v4.4h4.4v-4.4H7.3c0-1.9 1.1-3 2.9-3V7.6zm9 0c-3 0-5.2 2.1-5.2 5v4.4h4.4v-4.4h-2.1c0-1.9 1.1-3 2.9-3V7.6z"/></svg>';
+
+  function segSlice(text, n) {
+    let parts;
+    if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+      parts = Array.from(new Intl.Segmenter('und', { granularity: 'grapheme' }).segment(text), s => s.segment);
+    } else {
+      parts = Array.from(text);
+    }
+    return parts.length <= n ? text : parts.slice(0, n - 1).join('') + '…';
+  }
+
+  function quotePreview(text) {
+    const line = text.split('\n').map(s => s.trim()).find(s => s.length > 0) || '';
+    const p = segSlice(line, 12);
+    return p.length > 0 ? p : '…';
+  }
+
+  function escLabel(s) {
+    return s.replace(/%/g, '%25').replace(/&/g, '%26').replace(/</g, '%3C').replace(/>/g, '%3E')
+      .replace(/([\\[\]])/g, '\\$1').replace(/\n/g, '%0A').replace(/\r/g, '%0D');
+  }
+
+  function encDest(s) {
+    let out = '';
+    for (const ch of s) {
+      if (ch.codePointAt(0) > 127 || /[A-Za-z0-9\-._~]/.test(ch)) out += ch;
+      else out += '%' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0');
+    }
+    return out;
+  }
+
+  function quoteMarkdown(text) {
+    return '[' + escLabel(quotePreview(text)) + '](' + QUOTE_SCHEME + encDest(text) + ')';
+  }
+
+  function insertQuote(text) {
+    const pm = document.querySelector('.ProseMirror');
+    if (!pm) return;
+    pm.focus();
+    const before = pm.textContent.length + pm.querySelectorAll('.quote-pill').length;
+    try {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', quoteMarkdown(text));
+      pm.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+    } catch (err) { /* 合成事件失败时走下面的回退 */ }
+    setTimeout(() => {
+      const after = pm.textContent.length + pm.querySelectorAll('.quote-pill').length;
+      if (after === before) {
+        pm.focus();
+        document.execCommand('insertText', false, text);
+      }
+    }, 90);
+  }
+
+  function quoteTextFromTurn(turn) {
+    const t = turn.querySelector('.u-text');
+    let text = t ? t.textContent.trim() : '';
+    if (!text) {
+      text = Array.from(turn.querySelectorAll('.attachment-pill'))
+        .map(a => (a.getAttribute('aria-label') || a.textContent || '').trim())
+        .filter(Boolean).join('\n');
+    }
+    return text;
+  }
+
+  function augmentMeta(meta) {
+    if (!meta || meta.dataset.kimiQuoteDone) return;
+    meta.dataset.kimiQuoteDone = '1';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'u-copy';
+    btn.setAttribute('data-kimi-quote-btn', '');
+    btn.setAttribute('aria-label', '引用到输入框');
+    btn.title = '引用到输入框';
+    const nativeBtn = meta.querySelector('button.u-copy');
+    if (nativeBtn) {
+      for (const a of nativeBtn.attributes) {
+        if (a.name.startsWith('data-v-')) { btn.setAttribute(a.name, ''); break; }
+      }
+    }
+    btn.innerHTML = QUOTE_ICON;
+    btn.addEventListener('click', ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const turn = btn.closest('.u-turn');
+      const text = turn ? quoteTextFromTurn(turn) : '';
+      if (text) insertQuote(text);
+    }, true);
+    meta.prepend(btn);
+  }
+
   function scan() {
     document.querySelectorAll('.add-menu .am-scroll').forEach(augment);
+    document.querySelectorAll('.u-meta').forEach(augmentMeta);
   }
 
   const root = document.documentElement;

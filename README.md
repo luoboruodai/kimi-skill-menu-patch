@@ -1,4 +1,4 @@
-# Kimi Code 桌面端「+」菜单 · 技能/插件点击调用补丁
+# Kimi Code 桌面端补丁:「+」菜单技能/插件调用 + 消息引用按钮
 
 [中文](#中文) | [English](#english)
 
@@ -8,6 +8,9 @@
 
 让 Kimi Code 桌面版输入框左下的「+ 添加」菜单像 Codex 一样,直接列出所有可调用的
 技能(skills)和插件命令,鼠标点击即填入调用命令,不用再手敲 `/skill:...`。
+
+另外,每条用户消息底部的工具栏(复制/撤回/时间那一行)多了一个「引用」按钮:
+点击把这条消息作为原生引用块(quote pill)插入输入框,接着补话、回车即可带着原文提问。
 
 ### 效果
 
@@ -64,6 +67,10 @@ Kimi Code 桌面版是 Electron 应用,聊天界面由
 2. `skill-menu-patch.js` 用 MutationObserver 监听「+」菜单(`.add-menu .am-scroll`)出现,
    克隆原生菜单行样式,追加分组的技能/插件条目;点击时模拟 Escape 关菜单,
    再向 ProseMirror 输入框 `insertText` 填入调用命令。
+   同时监听用户消息底部工具栏(`.u-meta`),注入「引用」按钮;点击时把消息正文
+   按 app 原生语法构造 quote markdown(`[预览](kimi-code-composer://quote/<正文>)`,
+   编码规则与渲染层源码逐字对齐),通过合成 paste 事件走 ProseMirror 原生粘贴管道
+   转成引用块;粘贴未生效时回退为插入纯文本。
 
 填入的命令格式与 app 自身解析器一致(已从渲染层源码核实):
 
@@ -96,6 +103,10 @@ Kimi Code 桌面版是 Electron 应用,聊天界面由
 Makes the "+ Add" menu in the Kimi Code desktop composer's lower-left corner work like
 Codex's: it lists every invocable skill and plugin command, and a single click inserts
 the invocation command — no more typing `/skill:...` by hand.
+
+It also adds a "quote" button to every user message's footer toolbar (the row with
+copy / undo / timestamp): one click inserts that message into the composer as a native
+quote pill, so you can add your follow-up and send with the original text attached.
 
 ### What you get
 
@@ -158,6 +169,12 @@ frontend files under `Contents/Resources/desktop-dist/`. The patch does two thin
    (`.add-menu .am-scroll`), clones the native row style, and appends grouped
    skill/plugin entries. On click it closes the menu via a synthetic Escape, then
    `insertText`s the invocation command into the ProseMirror composer.
+   It also watches user-message footers (`.u-meta`) and injects a "quote" button.
+   On click it builds quote markdown in the app's native syntax
+   (`[preview](kimi-code-composer://quote/<text>)`, encoding rules byte-aligned
+   with the renderer source) and dispatches a synthetic paste event so the app's
+   own ProseMirror paste pipeline turns it into a quote pill; if the paste does
+   not land, it falls back to inserting plain text.
 
 The inserted command formats match the app's own parser (verified against the renderer
 source):

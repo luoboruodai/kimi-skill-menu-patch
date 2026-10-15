@@ -1,5 +1,23 @@
 # 更新日志 / Changelog
 
+## v1.1.0 (2026-10-15)
+
+- 新增:每条用户消息底部工具栏(复制/撤回/时间那一行)注入「引用」按钮,
+  点击把该消息作为原生 quote pill 插入输入框;合成粘贴事件走 app 自身的
+  ProseMirror 粘贴管道,quote markdown 语法与渲染层源码逐字对齐;
+  粘贴失败时回退为插入纯文本。仅附件的消息引用附件名。
+  Added: a "quote" button on every user message's footer toolbar (next to
+  copy/undo/time); clicking inserts the message into the composer as a native
+  quote pill via a synthetic paste event through the app's own ProseMirror
+  paste pipeline, with the quote-markdown syntax byte-aligned to the renderer
+  source; falls back to plain-text insertion if the paste does not land.
+  Attachment-only messages quote the attachment names.
+- 按钮样式复用原生 `.u-copy`,并从原生按钮上动态复制 `data-v-*` 作用域属性,
+  跨前端版本不易走样。
+  Button reuses the native `.u-copy` style and copies the `data-v-*` scope
+  attribute from the native button at runtime, so it survives frontend
+  re-scoping across app versions.
+
 ## v1.0.1 (2026-10-15)
 
 - 文档:README 改为中英双语;新增本更新日志;Release 说明附成员清单与 SHA-256。
