@@ -177,6 +177,30 @@ TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调�
     return text;
   }
 
+  let quoteTip = null;
+  function hideQuoteTip() {
+    if (quoteTip) { quoteTip.remove(); quoteTip = null; }
+  }
+
+  function showQuoteTip(btn) {
+    hideQuoteTip();
+    const r = btn.getBoundingClientRect();
+    const tip = document.createElement('div');
+    tip.setAttribute('data-kimi-quote-tip', '');
+    tip.setAttribute('role', 'tooltip');
+    tip.textContent = '引用';
+    tip.style.cssText = 'position:fixed;z-index:9999;padding:4px 8px;font-size:12px;line-height:1.4;white-space:nowrap;pointer-events:none;'
+      + 'border-radius:calc(var(--ms-radius,8px) * .75);background-color:var(--tooltip-bg,#2b2d31);color:var(--tooltip-fg,#eee);'
+      + 'box-shadow:inset 0 1px #ffffff26,0 0 0 1px #0000001f,var(--ms-shadow-popover,0 4px 14px rgba(0,0,0,.35))';
+    const arrow = document.createElement('div');
+    arrow.style.cssText = 'position:absolute;width:6px;height:6px;background:inherit;transform:rotate(45deg);left:50%;margin-left:-3px;bottom:-3px';
+    tip.appendChild(arrow);
+    document.body.appendChild(tip);
+    tip.style.left = Math.round(r.left + r.width / 2 - tip.offsetWidth / 2) + 'px';
+    tip.style.top = Math.round(r.top - tip.offsetHeight - 6) + 'px';
+    quoteTip = tip;
+  }
+
   function augmentMeta(meta) {
     if (!meta || meta.dataset.kimiQuoteDone) return;
     meta.dataset.kimiQuoteDone = '1';
@@ -185,7 +209,6 @@ TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调�
     btn.className = 'u-copy';
     btn.setAttribute('data-kimi-quote-btn', '');
     btn.setAttribute('aria-label', '引用到输入框');
-    btn.title = '引用到输入框';
     const nativeBtn = meta.querySelector('button.u-copy');
     if (nativeBtn) {
       for (const a of nativeBtn.attributes) {
@@ -193,9 +216,12 @@ TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调�
       }
     }
     btn.innerHTML = QUOTE_ICON;
+    btn.addEventListener('mouseenter', () => showQuoteTip(btn));
+    btn.addEventListener('mouseleave', hideQuoteTip);
     btn.addEventListener('click', ev => {
       ev.preventDefault();
       ev.stopPropagation();
+      hideQuoteTip();
       const turn = btn.closest('.u-turn');
       const text = turn ? quoteTextFromTurn(turn) : '';
       if (text) insertQuote(text);

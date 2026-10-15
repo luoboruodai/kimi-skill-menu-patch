@@ -1,5 +1,14 @@
 # 更新日志 / Changelog
 
+## v1.1.1 (2026-10-15)
+
+- 引用按钮悬停提示改为仿原生 tooltip 气泡(文字「引用」),替换掉浏览器原生
+  title 提示;样式复用 app 主题变量(--tooltip-bg/--tooltip-fg/--ms-radius 等),
+  点击/移出即销毁。
+  The quote button now shows a native-style tooltip bubble ("引用") on hover
+  instead of the browser's default title tooltip; styled with the app's own
+  theme variables and destroyed on click/mouseleave.
+
 ## v1.1.0 (2026-10-15)
 
 - 新增:每条用户消息底部工具栏(复制/撤回/时间那一行)注入「引用」按钮,
