@@ -1,4 +1,4 @@
-# Kimi Code 桌面端补丁:「+」菜单技能/插件调用 + 消息引用按钮
+# Kimi Code 桌面端补丁:「+」菜单技能/插件调用 + 消息引用按钮 + 总结归档按钮
 
 [中文](#中文) | [English](#english)
 
@@ -11,6 +11,10 @@
 
 另外,每条用户消息底部的工具栏(复制/撤回/时间那一行)多了一个「引用」按钮:
 点击把这条消息作为原生引用块(quote pill)插入输入框,接着补话、回车即可带着原文提问。
+
+输入框上方的状态胶囊行(「后台 Bash」「目标」等胶囊所在行)还多了一个「总结归档」
+胶囊:点击自动把「总结归档当前对话、方便交接给其他 AI 继续处理」的指令填入输入框
+并直接发送,一键生成交接归档文档;该行不存在时(没有后台任务等状态)会自动补出同样式的一行。
 
 ### 效果
 
@@ -64,13 +68,16 @@ Kimi Code 桌面版是 Electron 应用,聊天界面由
 `Contents/Resources/desktop-dist/` 下的静态前端文件渲染。补丁做两件事:
 
 1. 在 `index.html` 的 module script 前插入一行 `<script src="/assets/skill-menu-patch.js">`;
-2. `skill-menu-patch.js` 用 MutationObserver 监听「+」菜单(`.add-menu .am-scroll`)出现,
-   克隆原生菜单行样式,追加分组的技能/插件条目;点击时模拟 Escape 关菜单,
-   再向 ProseMirror 输入框 `insertText` 填入调用命令。
-   同时监听用户消息底部工具栏(`.u-meta`),注入「引用」按钮;点击时把消息正文
-   按 app 原生语法构造 quote markdown(`[预览](kimi-code-composer://quote/<正文>)`,
-   编码规则与渲染层源码逐字对齐),通过合成 paste 事件走 ProseMirror 原生粘贴管道
-   转成引用块;粘贴未生效时回退为插入纯文本。
+2. `skill-menu-patch.js` 用 MutationObserver 监听三类挂载点:
+   - 「+」菜单(`.add-menu .am-scroll`):克隆原生菜单行样式,追加分组的技能/插件条目;
+     点击时模拟 Escape 关菜单,再向 ProseMirror 输入框 `insertText` 填入调用命令;
+   - 用户消息底部工具栏(`.u-meta`):注入「引用」按钮;点击时把消息正文按 app 原生语法
+     构造 quote markdown(`[预览](kimi-code-composer://quote/<正文>)`,编码规则与渲染层
+     源码逐字对齐),通过合成 paste 事件走 ProseMirror 原生粘贴管道转成引用块;
+     粘贴未生效时回退为插入纯文本;
+   - 输入框容器(`.chat-dock`):把「总结归档」胶囊追加进状态胶囊行(`.dock-workbar`),
+     该行不存在时在 `.composer` 前自建同款布局的一行;点击时 `insertText` 填入
+     固定提示词,再自动点击原生发送按钮(`button.send`,与回车同一条发送路径)。
 
 填入的命令格式与 app 自身解析器一致(已从渲染层源码核实):
 
@@ -107,6 +114,12 @@ the invocation command — no more typing `/skill:...` by hand.
 It also adds a "quote" button to every user message's footer toolbar (the row with
 copy / undo / timestamp): one click inserts that message into the composer as a native
 quote pill, so you can add your follow-up and send with the original text attached.
+
+And it adds a "总结归档" (summarize & archive) pill to the status pill row above the
+composer (the row holding "后台 Bash" / goal pills): one click fills in a fixed
+handoff prompt — summarize and archive the current conversation so another AI can
+pick it up — and sends it immediately. When the status row is absent (no background
+tasks etc.), the patch creates its own identically styled row above the composer.
 
 ### What you get
 
@@ -165,16 +178,21 @@ frontend files under `Contents/Resources/desktop-dist/`. The patch does two thin
 
 1. Inserts one line, `<script src="/assets/skill-menu-patch.js">`, before the module
    script in `index.html`;
-2. `skill-menu-patch.js` uses a MutationObserver to watch for the "+" menu
-   (`.add-menu .am-scroll`), clones the native row style, and appends grouped
-   skill/plugin entries. On click it closes the menu via a synthetic Escape, then
-   `insertText`s the invocation command into the ProseMirror composer.
-   It also watches user-message footers (`.u-meta`) and injects a "quote" button.
-   On click it builds quote markdown in the app's native syntax
-   (`[preview](kimi-code-composer://quote/<text>)`, encoding rules byte-aligned
-   with the renderer source) and dispatches a synthetic paste event so the app's
-   own ProseMirror paste pipeline turns it into a quote pill; if the paste does
-   not land, it falls back to inserting plain text.
+2. `skill-menu-patch.js` uses a MutationObserver to watch three kinds of mount points:
+   - The "+" menu (`.add-menu .am-scroll`): clones the native row style and appends
+     grouped skill/plugin entries; on click it closes the menu via a synthetic
+     Escape, then `insertText`s the invocation command into the ProseMirror composer;
+   - User-message footers (`.u-meta`): injects a "quote" button. On click it builds
+     quote markdown in the app's native syntax
+     (`[preview](kimi-code-composer://quote/<text>)`, encoding rules byte-aligned
+     with the renderer source) and dispatches a synthetic paste event so the app's
+     own ProseMirror paste pipeline turns it into a quote pill; if the paste does
+     not land, it falls back to inserting plain text;
+   - The composer dock (`.chat-dock`): appends the "总结归档" pill into the status
+     pill row (`.dock-workbar`), or creates its own identically laid-out row before
+     `.composer` when the status row is absent. On click it `insertText`s the fixed
+     handoff prompt, then clicks the app's native send button (`button.send`) — the
+     exact same send path as pressing Enter.
 
 The inserted command formats match the app's own parser (verified against the renderer
 source):

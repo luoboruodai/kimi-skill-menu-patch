@@ -1,5 +1,24 @@
 # 更新日志 / Changelog
 
+## v1.2.0 (2026-10-18)
+
+- 新增:输入框上方的状态胶囊行(「后台 Bash」「目标」等胶囊所在行)追加「总结归档」
+  胶囊按钮;该行不存在时在输入框上方自建同款布局的一行。点击后把固定提示词
+  「将当前的所有对话进行总结，归档整理，方便交给其他 AI 继续处理」填入输入框,
+  并自动点击原生发送按钮(与手动回车同一条发送路径),一键让 Kimi Code 总结归档
+  当前对话、生成可交接给其他 AI 的归档文档。按钮复用全局 `.ui-pill` 样式,
+  悬停显示仿原生 tooltip「总结归档，交接给其他 AI」。
+  Added: a "总结归档" (summarize & archive) pill in the status pill row above the
+  composer (the row holding "后台 Bash" / goal pills); when that row is absent the
+  patch creates its own identically laid-out row above the composer. One click fills
+  the composer with a fixed handoff prompt and clicks the app's native send button
+  (the exact same path as pressing Enter), so Kimi Code summarizes and archives the
+  current conversation into a handoff document for another AI to continue. The
+  button reuses the global `.ui-pill` styles and shows a native-style tooltip.
+- 实现细节:tooltip 助手从引用按钮专用泛化为 `showTip(btn, text)`,两个功能共用。
+  Internals: the tooltip helper was generalized from quote-only to
+  `showTip(btn, text)` and is now shared by both features.
+
 ## v1.1.1 (2026-10-15)
 
 - 引用按钮悬停提示改为仿原生 tooltip 气泡(文字「引用」),替换掉浏览器原生

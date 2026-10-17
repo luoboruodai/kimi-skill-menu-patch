@@ -25,7 +25,8 @@ DEFAULT_TARGET = Path(os.environ.get(
     '/Applications/Kimi Code.app/Contents/Resources/desktop-dist',
 )) / 'assets' / 'skill-menu-patch.js'
 
-TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调用 + 用户消息「引用到输入框」按钮。
+TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调用 + 用户消息「引用到输入框」按钮
+ * + 输入框上方「总结归档」按钮(一键总结当前对话并归档,方便交接给其他 AI)。
  * 由 skill-menu-patch-gen.py 自动生成 —— 数据段勿手改,重新生成即可更新。
  * 生成时间:__GEN_TIME__ */
 (() => {
@@ -177,18 +178,18 @@ TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调�
     return text;
   }
 
-  let quoteTip = null;
-  function hideQuoteTip() {
-    if (quoteTip) { quoteTip.remove(); quoteTip = null; }
+  let tipEl = null;
+  function hideTip() {
+    if (tipEl) { tipEl.remove(); tipEl = null; }
   }
 
-  function showQuoteTip(btn) {
-    hideQuoteTip();
+  function showTip(btn, text) {
+    hideTip();
     const r = btn.getBoundingClientRect();
     const tip = document.createElement('div');
     tip.setAttribute('data-kimi-quote-tip', '');
     tip.setAttribute('role', 'tooltip');
-    tip.textContent = '引用';
+    tip.textContent = text;
     tip.style.cssText = 'position:fixed;z-index:9999;padding:4px 8px;font-size:12px;line-height:1.4;white-space:nowrap;pointer-events:none;'
       + 'border-radius:calc(var(--ms-radius,8px) * .75);background-color:var(--tooltip-bg,#2b2d31);color:var(--tooltip-fg,#eee);'
       + 'box-shadow:inset 0 1px #ffffff26,0 0 0 1px #0000001f,var(--ms-shadow-popover,0 4px 14px rgba(0,0,0,.35))';
@@ -198,7 +199,7 @@ TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调�
     document.body.appendChild(tip);
     tip.style.left = Math.round(r.left + r.width / 2 - tip.offsetWidth / 2) + 'px';
     tip.style.top = Math.round(r.top - tip.offsetHeight - 6) + 'px';
-    quoteTip = tip;
+    tipEl = tip;
   }
 
   function augmentMeta(meta) {
@@ -216,12 +217,12 @@ TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调�
       }
     }
     btn.innerHTML = QUOTE_ICON;
-    btn.addEventListener('mouseenter', () => showQuoteTip(btn));
-    btn.addEventListener('mouseleave', hideQuoteTip);
+    btn.addEventListener('mouseenter', () => showTip(btn, '引用'));
+    btn.addEventListener('mouseleave', hideTip);
     btn.addEventListener('click', ev => {
       ev.preventDefault();
       ev.stopPropagation();
-      hideQuoteTip();
+      hideTip();
       const turn = btn.closest('.u-turn');
       const text = turn ? quoteTextFromTurn(turn) : '';
       if (text) insertQuote(text);
@@ -229,9 +230,90 @@ TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调�
     meta.prepend(btn);
   }
 
+  /* ---- 输入框上方「总结归档」按钮 ----
+   * 在 composer 上方的状态胶囊行(.chat-dock > .dock-workbar,与「后台 Bash」等胶囊同行)
+   * 追加一个同款胶囊按钮;该行不存在时(无后台任务/计划等状态)则在 .composer 之前
+   * 自建一个同款布局的 bar。点击后把固定提示词插入输入框并自动点击原生发送按钮
+   * (button.send,渲染层发送逻辑与 Enter 完全同路径),一键让 Kimi Code 总结归档
+   * 当前对话,方便交接给其他 AI 继续处理。 */
+
+  const HANDOFF_PROMPT = '将当前的所有对话进行总结，归档整理，方便交给其他 AI 继续处理';
+  const HANDOFF_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>';
+  const HANDOFF_TIP = '总结归档，交接给其他 AI';
+
+  let handoffStyleEl = null;
+  function ensureHandoffStyle() {
+    if (handoffStyleEl && handoffStyleEl.isConnected) return;
+    handoffStyleEl = document.querySelector('style[data-kimi-handoff-style]');
+    if (handoffStyleEl) return;
+    handoffStyleEl = document.createElement('style');
+    handoffStyleEl.setAttribute('data-kimi-handoff-style', '');
+    handoffStyleEl.textContent = '.kimi-handoff-bar{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-1,4px);'
+      + 'padding:var(--space-1,4px) calc(var(--dock-inline-right,0px) + var(--space-4,16px)) 0 calc(var(--dock-inline-left,0px) + var(--space-4,16px))}'
+      + '.kimi-handoff-bar~.composer{padding-top:var(--space-1,4px)}'
+      + '.kimi-handoff-pill{display:inline-flex;align-items:center;cursor:pointer}';
+    document.head.appendChild(handoffStyleEl);
+  }
+
+  function onHandoff() {
+    if (!insertIntoComposer(HANDOFF_PROMPT)) return;
+    setTimeout(() => {
+      const send = document.querySelector('.chat-dock .composer button.send:not([disabled])')
+        || document.querySelector('button.send:not([disabled])');
+      if (send) send.click();
+    }, 120);
+  }
+
+  function mkHandoffBtn() {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ui-pill kimi-handoff-pill';
+    btn.setAttribute('data-kimi-handoff-btn', '');
+    btn.setAttribute('aria-label', HANDOFF_TIP);
+    btn.innerHTML = HANDOFF_ICON + '<span>总结归档</span>';
+    btn.addEventListener('mouseenter', () => showTip(btn, HANDOFF_TIP));
+    btn.addEventListener('mouseleave', hideTip);
+    btn.addEventListener('click', ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      hideTip();
+      onHandoff();
+    }, true);
+    return btn;
+  }
+
+  function augmentDock(dock) {
+    if (!dock) return;
+    const composer = dock.querySelector('.composer');
+    if (!composer) return;
+    ensureHandoffStyle();
+    const workbar = dock.querySelector('.dock-workbar');
+    const ownBar = dock.querySelector('[data-kimi-handoff-bar]');
+    let btn = dock.querySelector('[data-kimi-handoff-btn]');
+    if (workbar) {
+      if (ownBar) ownBar.remove();
+      if (!btn || btn.parentElement !== workbar) {
+        if (btn) btn.remove();
+        workbar.appendChild(mkHandoffBtn());
+      }
+      return;
+    }
+    if (ownBar) {
+      if (!ownBar.querySelector('[data-kimi-handoff-btn]')) ownBar.appendChild(mkHandoffBtn());
+      if (ownBar.nextElementSibling !== composer) dock.insertBefore(ownBar, composer);
+      return;
+    }
+    const bar = document.createElement('div');
+    bar.className = 'kimi-handoff-bar';
+    bar.setAttribute('data-kimi-handoff-bar', '');
+    bar.appendChild(btn || mkHandoffBtn());
+    dock.insertBefore(bar, composer);
+  }
+
   function scan() {
     document.querySelectorAll('.add-menu .am-scroll').forEach(augment);
     document.querySelectorAll('.u-meta').forEach(augmentMeta);
+    document.querySelectorAll('.chat-dock').forEach(augmentDock);
   }
 
   const root = document.documentElement;
