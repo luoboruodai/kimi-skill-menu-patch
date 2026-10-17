@@ -248,10 +248,22 @@ TEMPLATE = r"""/* Kimi Code 桌面端补丁:「+」菜单技能/插件一键调�
     if (handoffStyleEl) return;
     handoffStyleEl = document.createElement('style');
     handoffStyleEl.setAttribute('data-kimi-handoff-style', '');
+    /* .ui-pill 的全部样式都来自 .dock-workbar[data-v-30e8bc1b] .ui-pill 这一条 scoped 规则
+     * (渲染层没有全局 .ui-pill 规则) —— 按钮在 workbar 内由原生规则(优先级更高)接管,
+     * 在自建的 .kimi-handoff-bar 里则完全靠这里的复刻,两种场景外观一致。 */
     handoffStyleEl.textContent = '.kimi-handoff-bar{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-1,4px);'
       + 'padding:var(--space-1,4px) calc(var(--dock-inline-right,0px) + var(--space-4,16px)) 0 calc(var(--dock-inline-left,0px) + var(--space-4,16px))}'
       + '.kimi-handoff-bar~.composer{padding-top:var(--space-1,4px)}'
-      + '.kimi-handoff-pill{display:inline-flex;align-items:center;cursor:pointer}';
+      + '.kimi-handoff-pill{position:relative;display:inline-flex;align-items:center;gap:var(--space-1-5,6px);'
+      + 'height:auto;padding:var(--space-1,4px) var(--space-2,8px);border:none;border-radius:var(--radius-dock-pill,10px);'
+      + 'background:var(--color-hover,rgba(255,255,255,.05));-webkit-backdrop-filter:var(--p-menu-backdrop,none);'
+      + 'backdrop-filter:var(--p-menu-backdrop,none);color:var(--color-text,inherit);font-size:var(--text-base,13px);'
+      + 'font-weight:var(--weight-regular,400);line-height:round(calc(var(--text-base,13px) * 1.42),1px);cursor:pointer}'
+      + '.kimi-handoff-pill svg{width:var(--p-ic-dock,18px);height:var(--p-ic-dock,18px);color:inherit;flex:none}'
+      + '.kimi-handoff-pill:after{content:"";position:absolute;inset:0;border-radius:inherit;'
+      + 'background:var(--color-hover,rgba(255,255,255,.05));opacity:0;'
+      + 'transition:opacity var(--duration-base,.16s) var(--ease-out,ease-out);pointer-events:none}'
+      + '.kimi-handoff-pill:hover:not(:disabled):after{opacity:1}';
     document.head.appendChild(handoffStyleEl);
   }
 

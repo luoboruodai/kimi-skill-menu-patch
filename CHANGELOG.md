@@ -15,6 +15,19 @@
   (the exact same path as pressing Enter), so Kimi Code summarizes and archives the
   current conversation into a handoff document for another AI to continue. The
   button reuses the global `.ui-pill` styles and shows a native-style tooltip.
+- 修正(同日实测发现):渲染层**没有**全局 `.ui-pill` 规则,胶囊样式全部来自
+  `.dock-workbar[data-v-30e8bc1b] .ui-pill` 这一条 scoped 规则;无胶囊行时按钮曾因此
+  失去底色/圆角/内边距。现由补丁注入完整复刻样式(变量值带兜底),workbar 内仍让
+  原生高优先级规则接管,两种场景外观一致。fixture 挂载真实 app 样式表对计算样式
+  (圆角 10px / 底色 / 内边距 / 图标 18px / 行缩进 32px)逐项断言通过。
+  Fix (found in same-day field testing): the renderer has no global `.ui-pill`
+  rule — all pill styling comes from the single scoped rule
+  `.dock-workbar[data-v-30e8bc1b] .ui-pill`, so without the pill row the button
+  lost its background/radius/padding. The patch now injects a full replica of the
+  styles (with fallback values); inside the pill row the higher-specificity native
+  rule still wins, so both scenarios look identical. Computed-style assertions
+  (radius 10px / background / padding / 18px icon / 32px row indent) pass against
+  the app's real stylesheets in fixtures.
 - 实现细节:tooltip 助手从引用按钮专用泛化为 `showTip(btn, text)`,两个功能共用。
   Internals: the tooltip helper was generalized from quote-only to
   `showTip(btn, text)` and is now shared by both features.

@@ -78,6 +78,8 @@ Kimi Code 桌面版是 Electron 应用,聊天界面由
    - 输入框容器(`.chat-dock`):把「总结归档」胶囊追加进状态胶囊行(`.dock-workbar`),
      该行不存在时在 `.composer` 前自建同款布局的一行;点击时 `insertText` 填入
      固定提示词,再自动点击原生发送按钮(`button.send`,与回车同一条发送路径)。
+     按钮样式:workbar 内由原生 scoped 规则接管;自建行内由补丁注入的复刻样式
+     (渲染层没有全局 `.ui-pill` 规则,样式全部来自 `.dock-workbar[data-v-*] .ui-pill`)。
 
 填入的命令格式与 app 自身解析器一致(已从渲染层源码核实):
 
@@ -192,7 +194,10 @@ frontend files under `Contents/Resources/desktop-dist/`. The patch does two thin
      pill row (`.dock-workbar`), or creates its own identically laid-out row before
      `.composer` when the status row is absent. On click it `insertText`s the fixed
      handoff prompt, then clicks the app's native send button (`button.send`) — the
-     exact same send path as pressing Enter.
+     exact same send path as pressing Enter. Styling: inside the pill row the
+     native scoped rule takes over; in the self-created row the patch injects a
+     full style replica (the renderer has no global `.ui-pill` rule — all pill
+     styling comes from `.dock-workbar[data-v-*] .ui-pill`).
 
 The inserted command formats match the app's own parser (verified against the renderer
 source):
